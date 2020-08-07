@@ -1,0 +1,7 @@
+rmse_val,mae_val,mape_val,country,model
+0.229056362,0.170299055,0.20%,China,univariate ARIMA
+0.147826112,0.133335619,0.21%,India,univariate ARIMA
+0.66206399,0.483330824,0.90%,Singapore,univariate ARIMA
+0.100333401,0.086516863,0.09%,China,vector autoregression
+0.229456991,0.16033219,0.24%,India,vector autoregression
+1.251872932,1.153762714,1.40%,Singapore,vector autoregression
