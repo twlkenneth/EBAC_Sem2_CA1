@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="a2b6928b-ae16-44ad-9178-6a005bcdac51" name="Default Changelist" comment="" />
+    <list default="true" id="a2b6928b-ae16-44ad-9178-6a005bcdac51" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -14,6 +16,9 @@
       </list>
     </option>
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="ProjectId" id="1fhj5kTioOJTXfB4NAKLdNITfR5" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -22,7 +27,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="settings.editor.selected.configurable" value="Ignore Files Support" />
   </component>
   <component name="RunManager" selected="Python.model">
     <configuration name="base" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
@@ -50,6 +55,9 @@
       <module name="CA 1" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/q3_time_series" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -68,6 +76,9 @@
       <module name="CA 1" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/q3_time_series" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -135,16 +146,16 @@
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
     <state x="739" y="294" key="FileChooserDialogImpl/1920.7.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1596677224366" />
-    <state x="2381" y="189" key="SettingsEditor" timestamp="1596694250892">
-      <screen x="1920" y="7" width="1920" height="1080" />
-    </state>
-    <state x="461" y="182" key="SettingsEditor/1920.7.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1596677233740" />
-    <state x="2381" y="189" key="SettingsEditor/1920.7.1920.1080/0.0.1920.1080@1920.7.1920.1080" timestamp="1596694250892" />
-    <state x="656" y="364" key="com.intellij.ide.util.TipDialog" timestamp="1596763058265">
+    <state x="461" y="182" key="SettingsEditor" timestamp="1596778337002">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
-    <state x="656" y="364" key="com.intellij.ide.util.TipDialog/1920.7.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1596763058265" />
-    <state x="2576" y="371" key="com.intellij.ide.util.TipDialog/1920.7.1920.1080/0.0.1920.1080@1920.7.1920.1080" timestamp="1596724275649" />
+    <state x="461" y="182" key="SettingsEditor/1920.7.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1596778337002" />
+    <state x="2381" y="189" key="SettingsEditor/1920.7.1920.1080/0.0.1920.1080@1920.7.1920.1080" timestamp="1596694250892" />
+    <state x="656" y="364" key="com.intellij.ide.util.TipDialog" timestamp="1596778210904">
+      <screen x="0" y="0" width="1920" height="1080" />
+    </state>
+    <state x="656" y="364" key="com.intellij.ide.util.TipDialog/1920.7.1920.1080/0.0.1920.1080@0.0.1920.1080" timestamp="1596778210904" />
+    <state x="2576" y="371" key="com.intellij.ide.util.TipDialog/1920.7.1920.1080/0.0.1920.1080@1920.7.1920.1080" timestamp="1596778014268" />
     <state x="606" y="155" key="com.intellij.openapi.editor.actions.MultiplePasteAction$ClipboardContentChooser" timestamp="1596680176662">
       <screen x="0" y="0" width="1920" height="1080" />
     </state>
