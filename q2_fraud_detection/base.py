@@ -1,8 +1,9 @@
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, Dict
 
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score, matthews_corrcoef, accuracy_score, f1_score
 
 __all__ = ['Base']
 
@@ -41,3 +42,26 @@ class Base:
         X_test['Prod'] = X_test['Prod'].astype('int')
 
         return X_test
+
+    def _predict(self, model) -> pd.DataFrame:
+        y_test = model.predict(self.test_data_preprocessed())
+        results = pd.DataFrame(y_test)
+        results.columns = ['Insp']
+
+        return results
+
+    @staticmethod
+    def _evaluate(model, X_train_res:pd.DataFrame, X_valid: pd.DataFrame, y_train_res: pd.DataFrame
+                  , y_valid: pd.DataFrame) -> Dict[str, float]:
+        y_train_pre = model.predict(X_train_res)
+        y_valid_pre = model.predict(X_valid)
+
+        return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
+                'auc_valid': roc_auc_score(y_valid, y_valid_pre),
+                'acc_train': accuracy_score(y_train_res, y_train_pre),
+                'acc_valid': accuracy_score(y_valid, y_valid_pre),
+                'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre),
+                'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre),
+                'f1_score_train': f1_score(y_train_res, y_train_pre),
+                'f1_score_valid': f1_score(y_valid, y_valid_pre)
+                }

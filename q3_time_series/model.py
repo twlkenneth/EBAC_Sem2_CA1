@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Union, Dict, List, Any
 from math import sqrt
 
 import matplotlib.pyplot as plt
@@ -18,7 +18,8 @@ class VectorAutoRegression(Base):
     def __init__(self):
         super().__init__()
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[
+        pd.DataFrame, List[Dict[str, Dict[str, Union[Union[float, str], Any]]]]]:
         """
         >>> from q3_time_series.model import VectorAutoRegression
         >>> # To Evaluate
@@ -29,20 +30,21 @@ class VectorAutoRegression(Base):
         model = VAR(endog=self.train)
         model_fit = model.fit()
         if action == 'predict':
-            return pd.DataFrame(model_fit.forecast(model_fit.y, steps=2),index=['2008', '2009'] ,columns=[self.df.columns])
+            return pd.DataFrame(model_fit.forecast(model_fit.y, steps=2), index=['2008', '2009'],
+                                columns=[self.df.columns])
         else:
             prediction = model_fit.forecast(model_fit.y, steps=len(self.valid))
 
-            pred = pd.DataFrame(index=range(0,len(prediction)),columns=[self.df.columns])
-            for j in range(0,prediction.shape[1]):
+            pred = pd.DataFrame(index=range(0, len(prediction)), columns=[self.df.columns])
+            for j in range(0, prediction.shape[1]):
                 for i in range(0, len(prediction)):
-                   pred.iloc[i][j] = prediction[i][j]
+                    pred.iloc[i][j] = prediction[i][j]
 
             tmp = []
             for col in self.df.columns:
-                tmp.append({col:{'rmse_val' : sqrt(mean_squared_error(self.valid[col], pred[[col]])),
-                                 'mae_val' : mean_absolute_error(self.valid[col], pred[[col]]),
-                                 'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], pred[[col]])} %'}})
+                tmp.append({col: {'rmse_val': sqrt(mean_squared_error(self.valid[col], pred[[col]])),
+                                  'mae_val': mean_absolute_error(self.valid[col], pred[[col]]),
+                                  'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], pred[[col]])} %'}})
 
             return tmp
 
@@ -51,7 +53,8 @@ class StepWiseArima(Base):
     def __init__(self):
         super().__init__()
 
-    def run(self, country: Countries, action: str = 'evaluate'):
+    def run(self, country: Countries, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[
+        Union[Literal["Singapore"], Literal["China"], Literal["India"]], Dict[str, Union[Union[float, str], Any]]]]:
         """
         :param country: type string in ["Singapore", "China", "India"]
         :param action: type string "evaluate" or "predict"
@@ -66,19 +69,19 @@ class StepWiseArima(Base):
         assert country in Countries.__args__, \
             f"{country} is not supported, please choose between {Countries.__args__}"
 
-        stepwise_model = pm.auto_arima( self.df[country], start_p=1, start_q=1,
-                                        max_p = 3, max_q = 3, m = 12,
-                                        start_P = 0, seasonal = True,
-                                        d = 1, D = 1, trace = True,
-                                        error_action = 'ignore',
-                                        suppress_warnings = True,
-                                        stepwise = True)
+        stepwise_model = pm.auto_arima(self.df[country], start_p=1, start_q=1,
+                                       max_p=3, max_q=3, m=12,
+                                       start_P=0, seasonal=True,
+                                       d=1, D=1, trace=True,
+                                       error_action='ignore',
+                                       suppress_warnings=True,
+                                       stepwise=True)
         stepwise_model.fit(self.train[country])
         if action == 'predict':
             return pd.DataFrame(stepwise_model.predict(n_periods=2), index=['2008', '2009'], columns=[country])
         else:
             pred = pd.DataFrame(stepwise_model.predict(n_periods=len(self.valid[country])))
 
-            return {country: {'rmse_val' : sqrt(mean_squared_error(self.valid[country], pred)),
-                                'mae_val' : mean_absolute_error(self.valid[country], pred),
-                                'mape_val': f'{self.mean_absolute_percentage_error(self.valid[country], pred)} %'}}
+            return {country: {'rmse_val': sqrt(mean_squared_error(self.valid[country], pred)),
+                              'mae_val': mean_absolute_error(self.valid[country], pred),
+                              'mape_val': f'{self.mean_absolute_percentage_error(self.valid[country], pred)} %'}}

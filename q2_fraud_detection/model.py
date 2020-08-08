@@ -1,13 +1,13 @@
 import numpy as np
 import pandas as pd
-from typing import Dict
+from typing import Dict, Union
 
 from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 import lightgbm as lgb
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, matthews_corrcoef, accuracy_score, f1_score
+from sklearn.metrics import roc_auc_score, matthews_corrcoef
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 import tensorflow as tf
@@ -23,7 +23,7 @@ class LRegression(Base):
     def __init__(self):
         super().__init__()
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         """
         >>> from q2_fraud_detection.model import LRegression
         >>>
@@ -44,111 +44,54 @@ class LRegression(Base):
         lr1.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            y_test = lr1.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(lr1)
         else:
-            y_train_pre = lr1.predict(X_train_res)
-            y_valid_pre = lr1.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre)
-                    }
+            return self._evaluate(lr1, X_train_res, X_valid, y_train_res, y_valid)
 
 
 class DecisionTree(Base):
     def __init__(self):
         super().__init__()
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         clf = DecisionTreeClassifier(random_state=0)
         clf.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            y_test = clf.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(clf)
         else:
-            y_train_pre = clf.predict(X_train_res)
-            y_valid_pre = clf.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre)}
+            return self._evaluate(clf, X_train_res, X_valid, y_train_res, y_valid)
 
 
 class NaiveBayesClassifier(Base):
     def __init__(self):
         super().__init__()
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         nbc = GaussianNB()
         nbc.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            y_test = nbc.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(nbc)
         else:
-            y_train_pre = nbc.predict(X_train_res)
-            y_valid_pre = nbc.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre)}
+            return self._evaluate(nbc, X_train_res, X_valid, y_train_res, y_valid)
 
 
 class RandomForest(Base):
     def __init__(self):
         super().__init__()
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         rf = RandomForestClassifier(random_state=0)
         rf.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            y_test = rf.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(rf)
         else:
-            y_train_pre = rf.predict(X_train_res)
-            y_valid_pre = rf.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre)}
+            return self._evaluate(rf, X_train_res, X_valid, y_train_res, y_valid)
 
 
 class XGBoost(Base):
@@ -164,7 +107,7 @@ class XGBoost(Base):
                       'seed': 0
                       }
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         trials = Trials()
         best_hyperparams = fmin(fn=self.objective,
@@ -180,24 +123,9 @@ class XGBoost(Base):
         clf_xgb.fit(X_train_res, y_train_res)
 
         if action == 'predict':
-            y_test = clf_xgb.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(clf_xgb)
         else:
-            y_train_pre = clf_xgb.predict(X_train_res)
-            y_valid_pre = clf_xgb.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre > 0.5),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre > 0.5),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre > 0.5),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre > 0.5),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre > 0.5),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre > 0.5)
-                    }
+            return self._evaluate(clf_xgb, X_train_res, X_valid, y_train_res, y_valid)
 
     def objective(self, space: Dict) -> Dict:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
@@ -245,7 +173,7 @@ class TensorflowANN(Base):
             mode='max',
             restore_best_weights=True)
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         model = self.make_model(X_train_res)
 
@@ -258,24 +186,9 @@ class TensorflowANN(Base):
             validation_data=(X_valid, y_valid))
 
         if action == 'predict':
-            y_test = model.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(model)
         else:
-            y_train_pre = model.predict(X_train_res)
-            y_valid_pre = model.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre > 0.5),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre > 0.5),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre > 0.5),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre > 0.5),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre > 0.5),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre > 0.5)
-                    }
+            return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid)
 
     def make_model(self, X_train, output_bias=None):
         if output_bias is not None:
@@ -325,7 +238,7 @@ class LightGBM(Base):
                              num_leaves=self.num_leaves,
                              learning_rate=self.learning_rate)
 
-    def run(self, action: str = 'evaluate'):
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         lgg = lgb.LGBMClassifier()
         cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3,
@@ -336,21 +249,6 @@ class LightGBM(Base):
         grid_clf_acc = grid_search.fit(X_train_res, y_train_res)
 
         if action == 'predict':
-            y_test = grid_clf_acc.predict(self.test_data_preprocessed())
-            results = pd.DataFrame(y_test)
-            results.columns = ['Insp']
-
-            return results
+            return self._predict(grid_clf_acc)
         else:
-            y_train_pre = grid_clf_acc.predict(X_train_res)
-            y_valid_pre = grid_clf_acc.predict(X_valid)
-
-            return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
-                    'auc_valid': roc_auc_score(y_valid, y_valid_pre),
-                    'acc_train': accuracy_score(y_train_res, y_train_pre > 0.5),
-                    'acc_valid': accuracy_score(y_valid, y_valid_pre > 0.5),
-                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre > 0.5),
-                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre > 0.5),
-                    'f1_score_train': f1_score(y_train_res, y_train_pre > 0.5),
-                    'f1_score_valid': f1_score(y_valid, y_valid_pre > 0.5)
-                    }
+            return self._evaluate(grid_clf_acc, X_train_res, X_valid, y_train_res, y_valid)
