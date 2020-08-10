@@ -8,6 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, matthews_corrcoef
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 import tensorflow as tf
@@ -252,3 +253,54 @@ class LightGBM(Base):
             return self._predict(grid_clf_acc)
         else:
             return self._evaluate(grid_clf_acc, X_train_res, X_valid, y_train_res, y_valid)
+
+
+class EncoderDecoder(Base):
+    def __init__(self):
+        super().__init__()
+
+    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+
+        X_train_ok = X_train_res[y_train_res==0]
+
+        model = self.make_model(X_train_ok)
+
+        model.fit(
+            X_train_res,
+            X_train_res,
+            batch_size=256,
+            epochs=100,
+            callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=10, mode="min")],
+            validation_data=(X_train_res, X_train_res))
+
+        enc_all = model.predict(X_train_res)
+
+        knn_model = KNeighborsClassifier(n_neighbors=3)
+        knn_model.fit(enc_all, y_train_res)
+
+        if action == 'predict':
+            y_test = knn_model.predict(model.predict(self.test_data_preprocessed()))
+            results = pd.DataFrame(y_test)
+            results.columns = ['Insp']
+
+            return results
+        else:
+            return self._evaluate(knn_model, model.predict(X_train_res), model.predict(X_valid), y_train_res, y_valid)
+
+    def make_model(self, X_train_ok):
+        model = tf.keras.Sequential([
+            tf.keras.layers.Input(shape=(X_train_ok.shape[-1],)),
+            tf.keras.layers.Dense(16, activation='tanh'),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(8, activation='relu'),
+            tf.keras.layers.Dense(16, activation='relu'),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(X_train_ok.shape[-1], activation='tanh')
+        ])
+
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(),
+            loss=tf.keras.losses.MeanSquaredError())
+
+        return model
