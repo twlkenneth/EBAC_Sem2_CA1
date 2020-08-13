@@ -52,9 +52,20 @@ class Base:
 
     @staticmethod
     def _evaluate(model, X_train_res:pd.DataFrame, X_valid: pd.DataFrame, y_train_res: pd.DataFrame
-                  , y_valid: pd.DataFrame) -> Dict[str, float]:
+                  , y_valid: pd.DataFrame, threshold = None) -> Dict[str, float]:
         y_train_pre = model.predict(X_train_res)
         y_valid_pre = model.predict(X_valid)
+
+        if isinstance(threshold, float):
+            return {'auc_train': roc_auc_score(y_train_res, y_train_pre > threshold),
+                'auc_valid': roc_auc_score(y_valid, y_valid_pre > threshold),
+                'acc_train': accuracy_score(y_train_res, y_train_pre > threshold),
+                'acc_valid': accuracy_score(y_valid, y_valid_pre > threshold),
+                'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre > threshold),
+                'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre > threshold),
+                'f1_score_train': f1_score(y_train_res, y_train_pre > threshold),
+                'f1_score_valid': f1_score(y_valid, y_valid_pre > threshold)
+                }
 
         return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
                 'auc_valid': roc_auc_score(y_valid, y_valid_pre),

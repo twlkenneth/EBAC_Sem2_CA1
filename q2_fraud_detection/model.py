@@ -16,8 +16,8 @@ import xgboost as xgb
 
 from q2_fraud_detection.base import Base
 
-__all__ = ['LRegression', 'DecisionTree', 'NaiveBayesClassifier', 'RandomForest', 'XGBoost', 'TensorflowANN',
-           'LightGBM']
+__all__ = ['LRegression', 'DecisionTree', 'NaiveBayesClassifier', 'RandomForest', 'XGBoost', 'TensorflowMLP',
+           'LightGBM', 'EncoderDecoderKNN']
 
 
 class LRegression(Base):
@@ -104,7 +104,8 @@ class XGBoost(Base):
                       'reg_lambda': hp.uniform('reg_lambda', 0, 1),
                       'colsample_bytree': hp.uniform('colsample_bytree', 0.5, 1),
                       'min_child_weight': hp.quniform('min_child_weight', 0, 10, 1),
-                      'n_estimators': 180,
+                      'n_estimators': 2000,
+                      # 'learning_rate': hp.uniform('learning_rate', 0.01, 0.2),
                       'seed': 0
                       }
 
@@ -116,11 +117,8 @@ class XGBoost(Base):
                                 algo=tpe.suggest,
                                 max_evals=100,
                                 trials=trials)
-        clf_xgb = xgb.XGBClassifier(max_depth=int(best_hyperparams['max_depth']), gamma=best_hyperparams['gamma'],
-                                    reg_alpha=int(best_hyperparams['reg_alpha']),
-                                    min_child_weight=int(best_hyperparams['min_child_weight']),
-                                    reg_lambda=best_hyperparams['reg_lambda'],
-                                    colsample_bytree=best_hyperparams['colsample_bytree'])
+        best_hyperparams['max_depth'] = int(best_hyperparams['max_depth'])
+        clf_xgb = xgb.XGBClassifier(**best_hyperparams)
         clf_xgb.fit(X_train_res, y_train_res)
 
         if action == 'predict':
@@ -154,7 +152,7 @@ class XGBoost(Base):
         return 'MCC', matthews_corrcoef(labels, preds >= THRESHOLD)
 
 
-class TensorflowANN(Base):
+class TensorflowMLP(Base):
     def __init__(self):
         super().__init__()
         self.METRICS = [
@@ -189,7 +187,7 @@ class TensorflowANN(Base):
         if action == 'predict':
             return self._predict(model)
         else:
-            return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid, 0.5)
 
     def make_model(self, X_train, output_bias=None):
         if output_bias is not None:
@@ -255,7 +253,7 @@ class LightGBM(Base):
             return self._evaluate(grid_clf_acc, X_train_res, X_valid, y_train_res, y_valid)
 
 
-class EncoderDecoder(Base):
+class EncoderDecoderKNN(Base):
     def __init__(self):
         super().__init__()
 
