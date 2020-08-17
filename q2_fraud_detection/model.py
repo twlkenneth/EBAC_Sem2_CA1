@@ -83,16 +83,26 @@ class NaiveBayesClassifier(Base):
 class RandomForest(Base):
     def __init__(self):
         super().__init__()
+        self.param_grid =  {'n_estimators': [200, 500],
+                            'max_features': ['auto', 'sqrt', 'log2'],
+                            'max_depth' : [4,5,6,7,8],
+                            'criterion' :['gini', 'entropy']}
 
-    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+    def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+
         rf = RandomForestClassifier(random_state=0)
-        rf.fit(X_train_res, y_train_res.ravel())
+        if gridsearch == True:
+            grid_rf = GridSearchCV(estimator=rf, cv=5, param_grid=self.param_grid, scoring='roc_auc')
+        else:
+            grid_rf = rf
+
+        grid_rf.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            return self._predict(rf)
+            return self._predict(grid_rf)
         else:
-            return self._evaluate(rf, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(grid_rf, X_train_res, X_valid, y_train_res, y_valid)
 
 
 class XGBoost(Base):
@@ -106,19 +116,22 @@ class XGBoost(Base):
                       'min_child_weight': hp.quniform('min_child_weight', 0, 10, 1),
                       'n_estimators': 2000,
                       # 'learning_rate': hp.uniform('learning_rate', 0.01, 0.2),
-                      'seed': 0
-                      }
+                      'seed': 0}
 
-    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+    def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
-        trials = Trials()
-        best_hyperparams = fmin(fn=self.objective,
-                                space=self.space,
-                                algo=tpe.suggest,
-                                max_evals=100,
-                                trials=trials)
-        best_hyperparams['max_depth'] = int(best_hyperparams['max_depth'])
-        clf_xgb = xgb.XGBClassifier(**best_hyperparams)
+        if gridsearch == True:
+            trials = Trials()
+            best_hyperparams = fmin(fn=self.objective,
+                                    space=self.space,
+                                    algo=tpe.suggest,
+                                    max_evals=100,
+                                    trials=trials)
+            best_hyperparams['max_depth'] = int(best_hyperparams['max_depth'])
+            clf_xgb = xgb.XGBClassifier(**best_hyperparams)
+        else:
+            clf_xgb = xgb.XGBClassifier()
+
         clf_xgb.fit(X_train_res, y_train_res)
 
         if action == 'predict':
@@ -237,14 +250,19 @@ class LightGBM(Base):
                              num_leaves=self.num_leaves,
                              learning_rate=self.learning_rate)
 
-    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+    def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+
         lgg = lgb.LGBMClassifier()
-        cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3,
-                                     random_state=1)
-        grid_search = GridSearchCV(estimator=lgg,
-                                   param_grid=self.lgg_grid, n_jobs=-1, cv=cv,
-                                   scoring='roc_auc', error_score=0)
+        if gridsearch == True:
+            cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3,
+                                         random_state=1)
+            grid_search = GridSearchCV(estimator=lgg,
+                                       param_grid=self.lgg_grid, n_jobs=-1, cv=cv,
+                                       scoring='roc_auc', error_score=0)
+        else:
+            grid_search = lgg
+
         grid_clf_acc = grid_search.fit(X_train_res, y_train_res)
 
         if action == 'predict':

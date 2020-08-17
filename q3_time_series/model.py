@@ -1,15 +1,17 @@
-from typing import Literal, Union, Dict, List, Any
+from typing import Literal, Union, Dict, List, Any, Tuple
 from math import sqrt
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pmdarima as pm
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from statsmodels.tsa.vector_ar.var_model import VAR
+import tensorflow as tf
 
 from q3_time_series.base import Base
 
-__all__ = ['VectorAutoRegression', 'StepWiseArima']
+__all__ = ['VectorAutoRegression', 'StepWiseArima', 'UnivariateMultiStepLSTM']
 
 Countries = Literal["Singapore", "China", "India"]
 
@@ -33,21 +35,27 @@ class VectorAutoRegression(Base):
             return pd.DataFrame(model_fit.forecast(model_fit.y, steps=2), index=['2008', '2009'],
                                 columns=[self.df.columns])
         else:
-            prediction = model_fit.forecast(model_fit.y, steps=len(self.valid))
-
-            pred = pd.DataFrame(index=range(0, len(prediction)), columns=[self.df.columns])
-            for j in range(0, prediction.shape[1]):
-                for i in range(0, len(prediction)):
-                    pred.iloc[i][j] = prediction[i][j]
-
             tmp = []
             for col in self.df.columns:
-                tmp.append({col: {'rmse_val': sqrt(mean_squared_error(self.valid[col], pred[[col]])),
-                                  'mae_val': mean_absolute_error(self.valid[col], pred[[col]]),
-                                  'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], pred[[col]])} %'}})
+                tmp.append({col: {'rmse_train': sqrt(mean_squared_error(self.train[col], self._prediction(model_fit, self.train)[[col]])),
+                                  'rmse_val': sqrt(mean_squared_error(self.valid[col],self._prediction(model_fit, self.valid)[[col]])),
+                                  'mae_train': sqrt(mean_squared_error(self.train[col],self._prediction(model_fit, self.train)[[col]])),
+                                  'mae_val': mean_absolute_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]]),
+                                  'mape_train': f'{self.mean_absolute_percentage_error(self.train[col], self._prediction(model_fit, self.train)[[col]])} %',
+                                  'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]])} %'}})
 
             return tmp
 
+    @staticmethod
+    def _prediction(model, data):
+        prediction = model.forecast(model.y, steps=len(data))
+
+        pred = pd.DataFrame(index=range(0, len(prediction)), columns=[data.columns])
+        for j in range(0, prediction.shape[1]):
+            for i in range(0, len(prediction)):
+                pred.iloc[i][j] = prediction[i][j]
+
+        return pred
 
 class StepWiseArima(Base):
     def __init__(self):
@@ -80,8 +88,155 @@ class StepWiseArima(Base):
         if action == 'predict':
             return pd.DataFrame(stepwise_model.predict(n_periods=2), index=['2008', '2009'], columns=[country])
         else:
-            pred = pd.DataFrame(stepwise_model.predict(n_periods=len(self.valid[country])))
+            pred_valid = pd.DataFrame(stepwise_model.predict(n_periods=len(self.valid[country])))
+            pred_train = pd.DataFrame(stepwise_model.predict(n_periods=len(self.train[country])))
 
-            return {country: {'rmse_val': sqrt(mean_squared_error(self.valid[country], pred)),
-                              'mae_val': mean_absolute_error(self.valid[country], pred),
-                              'mape_val': f'{self.mean_absolute_percentage_error(self.valid[country], pred)} %'}}
+            return {country: {'rmse_train': sqrt(mean_squared_error(self.train[country], pred_train)),
+                              'rmse_val': sqrt(mean_squared_error(self.valid[country], pred_valid)),
+                              'mae_train': mean_absolute_error(self.train[country], pred_train),
+                              'mae_val': mean_absolute_error(self.valid[country], pred_valid),
+                              'mape_train': f'{self.mean_absolute_percentage_error(self.train[country], pred_train)} %',
+                              'mape_val': f'{self.mean_absolute_percentage_error(self.valid[country], pred_valid)} %'}}
+
+
+class UnivariateMultiStepLSTM(Base):
+    def __init__(self, n_steps_in: int, n_steps_out: int):
+        super().__init__()
+        self.n_steps_in = n_steps_in
+        self.n_steps_out = n_steps_out
+        self.n_features = 1
+
+    def run(self, country: Countries, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[
+        Union[Literal["Singapore"], Literal["China"], Literal["India"]], Dict[str, Union[Union[float, str], Any]]]]:
+        """
+        >>> from q3_time_series.model import UnivariateMultiStepLSTM
+        >>> # To Evaluate
+        >>> evaluate_metrics = UnivariateMultiStepLSTM(3,2).run('Singapore', "evaluate")
+        >>> # To Predict
+        >>> prediction = UnivariateMultiStepLSTM(3,2).run('Singapore', 'predict')
+        """
+        assert country in Countries.__args__, \
+            f"{country} is not supported, please choose between {Countries.__args__}"
+        X_train, y_train = self.split_sequence(self.train[country].values, self.n_steps_in, self.n_steps_out)
+        X_valid, y_valid = self.split_sequence(self.valid[country].values, self.n_steps_in, self.n_steps_out)
+
+        X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], self.n_features))
+        X_valid = X_valid.reshape((X_valid.shape[0], X_valid.shape[1], self.n_features))
+
+        model = self.make_model()
+        model.fit(X_train, y_train, epochs=200, verbose=0, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)], validation_data=(X_valid, y_valid))
+
+        if action == 'predict':
+            input = (self.df[country][-self.n_steps_in:].values).reshape((1, self.n_steps_in, self.n_features))
+            pred = model.predict(input, verbose=0)
+
+            return pd.DataFrame(pred, columns = ['2008', '2009'], index=[country]).T
+
+        else:
+            pred_valid = model.predict(X_valid, verbose=0)
+            pred_train = model.predict(X_train, verbose=0)
+
+            return {country: {'rmse_train': sqrt(mean_squared_error([y_train[i][0] for i in range(0, len(y_train))], [pred_train[i][0] for i in range(0, len(pred_train))])),
+                              'rmse_val': sqrt(mean_squared_error([y_valid[i][0] for i in range(0, len(y_valid))], [pred_valid[i][0] for i in range(0, len(pred_valid))])),
+                              'mae_train': mean_absolute_error([y_train[i][0] for i in range(0, len(y_train))], [pred_train[i][0] for i in range(0, len(pred_train))]),
+                              'mae_val': mean_absolute_error([y_valid[i][0] for i in range(0, len(y_valid))], [pred_valid[i][0] for i in range(0, len(pred_valid))]),
+                              'mape_train': f'{self.mean_absolute_percentage_error([y_train[i][0] for i in range(0, len(y_train))], [pred_train[i][0] for i in range(0, len(pred_train))])} %',
+                              'mape_val': f'{self.mean_absolute_percentage_error([y_valid[i][0] for i in range(0, len(y_valid))], [pred_valid[i][0] for i in range(0, len(pred_valid))])} %'}}
+
+    def make_model(self):
+        model = tf.keras.Sequential([
+            tf.keras.layers.LSTM(100, activation='relu', input_shape=(self.n_steps_in, self.n_features)),
+            tf.keras.layers.Dense(self.n_steps_out)
+        ])
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(),
+            loss=tf.keras.losses.MeanSquaredError())
+
+        return model
+
+    @staticmethod
+    def split_sequence(sequence, n_steps_in, n_steps_out) -> Tuple[np.ndarray, np.ndarray]:
+        X, y = list(), list()
+        for i in range(len(sequence)):
+            # find the end of this pattern
+            end_ix = i + n_steps_in
+            out_end_ix = end_ix + n_steps_out
+            # check if we are beyond the sequence
+            if out_end_ix > len(sequence):
+                break
+            # gather input and output parts of the pattern
+            seq_x, seq_y = sequence[i:end_ix], sequence[end_ix:out_end_ix]
+            X.append(seq_x)
+            y.append(seq_y)
+        return np.array(X), np.array(y)
+
+
+class MultivariateMultiStepLSTM(Base):
+    def __init__(self, n_steps_in, n_steps_out):
+        super().__init__()
+        self.n_steps_in = n_steps_in
+        self.n_steps_out = n_steps_out
+
+    def run(self):
+        dataset_train = np.hstack(self.hstacK_generator(self.train))
+        dataset_valid = np.hstack(self.hstacK_generator(self.valid))
+
+        X_train, y_train = self.split_sequences(dataset_train, self.n_steps_in, self.n_steps_out)
+        X_valid, y_valid = self.split_sequences(dataset_valid, self.n_steps_in, self.n_steps_out)
+
+        model = self.make_model(X_train.shape[2])
+        model.fit(X_train, y_train, epochs=200, verbose=0,
+                  callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)],
+                  validation_data=(X_valid, y_valid))
+
+        pred_valid = model.predict(X_valid, verbose=0)
+        pred_train = model.predict(X_train, verbose=0)
+
+        tmp = []
+        for j, col in enumerate(self.df.columns):
+            tmp.append({col: {'rmse_train': sqrt(mean_squared_error([y_train[i][0][j] for i in range(0,len(y_train))], [pred_train[i][0][j] for i in range(0,len(pred_train))])),
+                              'rmse_val': sqrt(mean_squared_error([y_valid[i][0][j] for i in range(0,len(y_valid))], [pred_valid[i][0][j] for i in range(0,len(pred_valid))])),
+                              'mae_train': mean_absolute_error([y_train[i][0][j] for i in range(0,len(y_train))], [pred_train[i][0][j] for i in range(0,len(pred_train))]),
+                              'mae_val': mean_absolute_error([y_valid[i][0][j] for i in range(0,len(y_valid))], [pred_valid[i][0][j] for i in range(0,len(pred_valid))]),
+                              'mape_train': f'{self.mean_absolute_percentage_error([y_train[i][0][j] for i in range(0,len(y_train))], [pred_train[i][0][j] for i in range(0,len(pred_train))])} %',
+                              'mape_val': f'{self.mean_absolute_percentage_error([y_valid[i][0][j] for i in range(0,len(y_valid))], [pred_train[i][0][j] for i in range(0,len(pred_valid))])} %'}})
+
+        return tmp
+
+    def make_model(self, n_features):
+        model = tf.keras.Sequential([
+            tf.keras.layers.LSTM(200, activation='relu', input_shape=(self.n_steps_in, n_features)),
+            tf.keras.layers.RepeatVector(self.n_steps_out),
+            tf.keras.layers.LSTM(200, activation='relu', return_sequences=True),
+            tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(n_features)),
+        ])
+        model.compile(
+            optimizer=tf.keras.optimizers.Adam(),
+            loss=tf.keras.losses.MeanSquaredError())
+
+        return model
+
+    def hstacK_generator(self, df) -> Tuple[Any, ...]:
+        tmp = []
+        for country in self.df.columns:
+            seq = df[country].values.reshape((len(df[country]), 1))
+            tmp.append(seq)
+
+        return tuple(tmp)
+
+    @staticmethod
+    def split_sequences(sequences, n_steps_in, n_steps_out) -> Tuple[np.ndarray, np.ndarray]:
+        X, y = list(), list()
+        for i in range(len(sequences)):
+            # find the end of this pattern
+            end_ix = i + n_steps_in
+            out_end_ix = end_ix + n_steps_out
+            # check if we are beyond the dataset
+            if out_end_ix > len(sequences):
+                break
+            # gather input and output parts of the pattern
+            seq_x, seq_y = sequences[i:end_ix, :], sequences[end_ix:out_end_ix, :]
+            X.append(seq_x)
+            y.append(seq_y)
+
+        return np.array(X), np.array(y)

@@ -22,4 +22,5 @@ def comparison() -> pd.DataFrame:
     return leaderboard
 
 if __name__ == "__main__":
-    comparison()
+    df = comparison()
+    print(df.to_string())

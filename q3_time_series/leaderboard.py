@@ -22,9 +22,19 @@ def comparison() -> pd.DataFrame:
         multi.append(df)
     var = pd.concat(multi)
 
-    leaderboard = pd.concat([univariate, var])
+    lstm = []
+    for country in Base().df.columns:
+        s = UnivariateMultiStepLSTM(3,2).run(country)
+        df = pd.DataFrame([s[country]])
+        df['country'] = country
+        df['model'] = 'univariate multistep LSTM'
+        lstm.append(df)
+    multisteplstm = pd.concat(lstm)
+
+    leaderboard = pd.concat([univariate, var, multisteplstm])
 
     return leaderboard
 
 if __name__ == "__main__":
-    comparison()
+    df = comparison()
+    print(df.to_string())
