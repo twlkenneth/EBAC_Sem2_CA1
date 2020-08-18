@@ -7,7 +7,7 @@ import lightgbm as lgb
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score, matthews_corrcoef
+from sklearn.metrics import roc_auc_score, matthews_corrcoef, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
@@ -19,6 +19,11 @@ from q2_fraud_detection.base import Base
 __all__ = ['LRegression', 'DecisionTree', 'NaiveBayesClassifier', 'RandomForest', 'XGBoost', 'TensorflowMLP',
            'LightGBM', 'EncoderDecoderKNN']
 
+"""
+class with Grid Search Function: LightGBM, RandomForest, XGBoost
+class requiring threshold input for classification: TensorflowMLP
+"""
+
 
 class LRegression(Base):
     def __init__(self):
@@ -28,10 +33,12 @@ class LRegression(Base):
         """
         >>> from q2_fraud_detection.model import LRegression
         >>>
-        >>> # To Evaluate (same for all other models)
+        >>> # To Evaluate
         >>> evaluate_metrics = LRegression().run("evaluate")
-        >>> # To Predict (same for all other models)
+        >>> # To Predict
         >>> prediction = LRegression().run("predict")
+        >>> # To plot confusion matrix
+        >>> conf_matrix = LRegression().run("plot")
         """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         parameters = {
@@ -46,6 +53,8 @@ class LRegression(Base):
 
         if action == 'predict':
             return self._predict(lr1)
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, lr1.predict(X_valid)), title='LRegression')
         else:
             return self._evaluate(lr1, X_train_res, X_valid, y_train_res, y_valid)
 
@@ -61,6 +70,8 @@ class DecisionTree(Base):
 
         if action == 'predict':
             return self._predict(clf)
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, clf.predict(X_valid)), title='DecisionTree')
         else:
             return self._evaluate(clf, X_train_res, X_valid, y_train_res, y_valid)
 
@@ -76,6 +87,8 @@ class NaiveBayesClassifier(Base):
 
         if action == 'predict':
             return self._predict(nbc)
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, nbc.predict(X_valid)), title='NaiveBayesClassifier')
         else:
             return self._evaluate(nbc, X_train_res, X_valid, y_train_res, y_valid)
 
@@ -89,6 +102,16 @@ class RandomForest(Base):
                             'criterion' :['gini', 'entropy']}
 
     def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import RandomForest
+        >>>
+        >>> # To Evaluate without gridsearch
+        >>> evaluate_metrics = RandomForest().run("evaluate")
+        >>> # To Predict with gridsearch
+        >>> prediction = RandomForest().run("predict", True)
+        >>> # To plot confusion matrix
+        >>> conf_matrix = RandomForest().run("plot")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
 
         rf = RandomForestClassifier(random_state=0)
@@ -101,6 +124,8 @@ class RandomForest(Base):
 
         if action == 'predict':
             return self._predict(grid_rf)
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, grid_rf.predict(X_valid)), title=f'RandomForest_GSearch[{gridsearch}]')
         else:
             return self._evaluate(grid_rf, X_train_res, X_valid, y_train_res, y_valid)
 
@@ -119,6 +144,16 @@ class XGBoost(Base):
                       'seed': 0}
 
     def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import XGBoost
+        >>>
+        >>> # To Evaluate without gridsearch
+        >>> evaluate_metrics = XGBoost().run("evaluate")
+        >>> # To Predict with gridsearch
+        >>> prediction = XGBoost().run("predict", True)
+        >>> # To plot confusion matrix
+        >>> conf_matrix = XGBoost().run("plot")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         if gridsearch == True:
             trials = Trials()
@@ -136,6 +171,8 @@ class XGBoost(Base):
 
         if action == 'predict':
             return self._predict(clf_xgb)
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, clf_xgb.predict(X_valid)), title=f'XGBoost_GSearch[{gridsearch}]')
         else:
             return self._evaluate(clf_xgb, X_train_res, X_valid, y_train_res, y_valid)
 
@@ -199,6 +236,9 @@ class TensorflowMLP(Base):
 
         if action == 'predict':
             return self._predict(model)
+        elif action == 'plot':
+            y_pred = model.predict(X_valid)
+            return self.plot_confusion_matrix(confusion_matrix(y_valid,  y_pred > 0.5), title='TensorflowMLP')
         else:
             return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid, 0.5)
 
@@ -251,6 +291,16 @@ class LightGBM(Base):
                              learning_rate=self.learning_rate)
 
     def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import LightGBM
+        >>>
+        >>> # To Evaluate without gridsearch
+        >>> evaluate_metrics = LightGBM().run("evaluate")
+        >>> # To Predict with gridsearch
+        >>> prediction = LightGBM().run("predict", True)
+        >>> # To plot confusion matrix
+        >>> conf_matrix = LightGBM().run("plot")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
 
         lgg = lgb.LGBMClassifier()
@@ -267,6 +317,8 @@ class LightGBM(Base):
 
         if action == 'predict':
             return self._predict(grid_clf_acc)
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, grid_clf_acc.predict(X_valid)), title=f'LightGBM_GSearch[{gridsearch}]')
         else:
             return self._evaluate(grid_clf_acc, X_train_res, X_valid, y_train_res, y_valid)
 
@@ -301,6 +353,8 @@ class EncoderDecoderKNN(Base):
             results.columns = ['Insp']
 
             return results
+        elif action == 'plot':
+            return self.plot_confusion_matrix(confusion_matrix(y_valid, knn_model.predict(model.predict(X_valid))), title='EncoderDecoder')
         else:
             return self._evaluate(knn_model, model.predict(X_train_res), model.predict(X_valid), y_train_res, y_valid)
 

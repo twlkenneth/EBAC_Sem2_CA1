@@ -155,7 +155,7 @@ class UnivariateMultiStepLSTM(Base):
         return model
 
     @staticmethod
-    def split_sequence(sequence, n_steps_in, n_steps_out) -> Tuple[np.ndarray, np.ndarray]:
+    def split_sequence(sequence, n_steps_in: int, n_steps_out: int) -> Tuple[np.ndarray, np.ndarray]:
         X, y = list(), list()
         for i in range(len(sequence)):
             # find the end of this pattern
@@ -172,7 +172,7 @@ class UnivariateMultiStepLSTM(Base):
 
 
 class MultivariateMultiStepLSTM(Base):
-    def __init__(self, n_steps_in, n_steps_out):
+    def __init__(self, n_steps_in: int, n_steps_out: int):
         super().__init__()
         self.n_steps_in = n_steps_in
         self.n_steps_out = n_steps_out
@@ -203,7 +203,7 @@ class MultivariateMultiStepLSTM(Base):
 
         return tmp
 
-    def make_model(self, n_features):
+    def make_model(self, n_features: int):
         model = tf.keras.Sequential([
             tf.keras.layers.LSTM(200, activation='relu', input_shape=(self.n_steps_in, n_features)),
             tf.keras.layers.RepeatVector(self.n_steps_out),
@@ -225,7 +225,7 @@ class MultivariateMultiStepLSTM(Base):
         return tuple(tmp)
 
     @staticmethod
-    def split_sequences(sequences, n_steps_in, n_steps_out) -> Tuple[np.ndarray, np.ndarray]:
+    def split_sequences(sequences, n_steps_in: int, n_steps_out: int) -> Tuple[np.ndarray, np.ndarray]:
         X, y = list(), list()
         for i in range(len(sequences)):
             # find the end of this pattern
