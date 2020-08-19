@@ -2,11 +2,12 @@ import itertools
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Any
 
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, accuracy_score, f1_score
+from sklearn.preprocessing import PolynomialFeatures
 
 __all__ = ['Base']
 
@@ -17,7 +18,7 @@ class Base:
         self.train = self.df[self.df['Insp'] != 'unkn']
         self.test = self.df[self.df['Insp'] == 'unkn']
 
-    def _train_test_split(self) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def _train_test_split(self, polyfeature=False, onehot_ecode=False) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
         """ Sanity check before spliting into 80% training and 20% validation set """
         X = self.train[['ID', 'Prod', 'Quant', 'Val']]
         y = self.train['Insp']
@@ -30,6 +31,19 @@ class Base:
         mapper = {'ok': 0, 'fraud': 1}
         y = y.map(mapper)
 
+        if polyfeature == True:
+            X = self._poly_feature(X)
+
+        if onehot_ecode == True:
+            X = self._one_hot_encode(X)
+
+            X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=42)
+
+            sm = SMOTE(random_state=2)
+            X_train_res, y_train_res = sm.fit_sample(X_train.values, y_train.ravel())
+
+            return pd.DataFrame(X_train_res, columns=X.columns), X_valid, y_train_res, y_valid
+
         X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=42)
 
         sm = SMOTE(random_state=2)
@@ -37,12 +51,18 @@ class Base:
 
         return X_train_res, X_valid, y_train_res, y_valid
 
-    def test_data_preprocessed(self) -> pd.DataFrame:
+    def test_data_preprocessed(self, polyfeature=False, onehot_ecode=False) -> pd.DataFrame:
         """ Converting testing dataset to training dataset format """
         X_test = self.test.drop(columns=['Insp'])
 
         X_test['ID'] = X_test['ID'].astype('int')
         X_test['Prod'] = X_test['Prod'].astype('int')
+
+        if polyfeature == True:
+            X_test = self._poly_feature(X_test)
+
+        if onehot_ecode == True:
+            X_test = self._one_hot_encode(X_test)
 
         return X_test
 
@@ -54,21 +74,36 @@ class Base:
         return results
 
     @staticmethod
-    def _evaluate(model, X_train_res:pd.DataFrame, X_valid: pd.DataFrame, y_train_res: pd.DataFrame
-                  , y_valid: pd.DataFrame, threshold = None) -> Dict[str, float]:
+    def _poly_feature(X) -> pd.DataFrame:
+        poly = PolynomialFeatures(2)
+        X_quant_prod = pd.DataFrame(poly.fit_transform(X[['Quant', 'Val']]))
+        X_quant_prod.columns = ['redundant', 'Quant', 'Val', 'Feature1', 'Feature2', 'Feature3']
+
+        return pd.concat([X.reset_index(), X_quant_prod[['Feature1', 'Feature2', 'Feature3']]], axis=1)
+
+    @staticmethod
+    def _one_hot_encode(X: pd.DataFrame) -> pd.DataFrame:
+        onehot_id = pd.get_dummies(X['ID'])
+        onehot_prod = pd.get_dummies(X['Prod'])
+
+        return pd.concat([X, onehot_id, onehot_prod], axis=1).drop(columns=['ID', 'Prod'])
+
+    @staticmethod
+    def _evaluate(model, X_train_res: pd.DataFrame, X_valid: pd.DataFrame, y_train_res: pd.DataFrame
+                  , y_valid: pd.DataFrame, threshold=None) -> Dict[str, float]:
         y_train_pre = model.predict(X_train_res)
         y_valid_pre = model.predict(X_valid)
 
         if isinstance(threshold, float):
             return {'auc_train': roc_auc_score(y_train_res, y_train_pre > threshold),
-                'auc_valid': roc_auc_score(y_valid, y_valid_pre > threshold),
-                'acc_train': accuracy_score(y_train_res, y_train_pre > threshold),
-                'acc_valid': accuracy_score(y_valid, y_valid_pre > threshold),
-                'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre > threshold),
-                'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre > threshold),
-                'f1_score_train': f1_score(y_train_res, y_train_pre > threshold),
-                'f1_score_valid': f1_score(y_valid, y_valid_pre > threshold)
-                }
+                    'auc_valid': roc_auc_score(y_valid, y_valid_pre > threshold),
+                    'acc_train': accuracy_score(y_train_res, y_train_pre > threshold),
+                    'acc_valid': accuracy_score(y_valid, y_valid_pre > threshold),
+                    'matthew_corr_train': matthews_corrcoef(y_train_res, y_train_pre > threshold),
+                    'matthew_corr_valid': matthews_corrcoef(y_valid, y_valid_pre > threshold),
+                    'f1_score_train': f1_score(y_train_res, y_train_pre > threshold),
+                    'f1_score_valid': f1_score(y_valid, y_valid_pre > threshold)
+                    }
 
         return {'auc_train': roc_auc_score(y_train_res, y_train_pre),
                 'auc_valid': roc_auc_score(y_valid, y_valid_pre),
@@ -96,7 +131,6 @@ class Base:
         tick_marks = np.arange(len(classes))
         plt.xticks(tick_marks, classes, rotation=0)
         plt.yticks(tick_marks, classes)
-
 
         thresh = cm.max() / 2.
         for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):

@@ -37,8 +37,6 @@ class LRegression(Base):
         >>> evaluate_metrics = LRegression().run("evaluate")
         >>> # To Predict
         >>> prediction = LRegression().run("predict")
-        >>> # To plot confusion matrix
-        >>> conf_matrix = LRegression().run("plot")
         """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         parameters = {
@@ -53,9 +51,8 @@ class LRegression(Base):
 
         if action == 'predict':
             return self._predict(lr1)
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, lr1.predict(X_valid)), title='LRegression')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, lr1.predict(X_valid)), title='LRegression')
             return self._evaluate(lr1, X_train_res, X_valid, y_train_res, y_valid)
 
 
@@ -70,9 +67,8 @@ class DecisionTree(Base):
 
         if action == 'predict':
             return self._predict(clf)
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, clf.predict(X_valid)), title='DecisionTree')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, clf.predict(X_valid)), title='DecisionTree')
             return self._evaluate(clf, X_train_res, X_valid, y_train_res, y_valid)
 
 
@@ -87,9 +83,8 @@ class NaiveBayesClassifier(Base):
 
         if action == 'predict':
             return self._predict(nbc)
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, nbc.predict(X_valid)), title='NaiveBayesClassifier')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, nbc.predict(X_valid)), title='NaiveBayesClassifier')
             return self._evaluate(nbc, X_train_res, X_valid, y_train_res, y_valid)
 
 
@@ -109,8 +104,6 @@ class RandomForest(Base):
         >>> evaluate_metrics = RandomForest().run("evaluate")
         >>> # To Predict with gridsearch
         >>> prediction = RandomForest().run("predict", True)
-        >>> # To plot confusion matrix
-        >>> conf_matrix = RandomForest().run("plot")
         """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
 
@@ -124,9 +117,9 @@ class RandomForest(Base):
 
         if action == 'predict':
             return self._predict(grid_rf)
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, grid_rf.predict(X_valid)), title=f'RandomForest_GSearch[{gridsearch}]')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, grid_rf.predict(X_valid)),
+                                       title=f'RandomForest_GSearch[{gridsearch}]')
             return self._evaluate(grid_rf, X_train_res, X_valid, y_train_res, y_valid)
 
 
@@ -151,8 +144,6 @@ class XGBoost(Base):
         >>> evaluate_metrics = XGBoost().run("evaluate")
         >>> # To Predict with gridsearch
         >>> prediction = XGBoost().run("predict", True)
-        >>> # To plot confusion matrix
-        >>> conf_matrix = XGBoost().run("plot")
         """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
         if gridsearch == True:
@@ -171,9 +162,9 @@ class XGBoost(Base):
 
         if action == 'predict':
             return self._predict(clf_xgb)
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, clf_xgb.predict(X_valid)), title=f'XGBoost_GSearch[{gridsearch}]')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, clf_xgb.predict(X_valid)),
+                                       title=f'XGBoost_GSearch[{gridsearch}]')
             return self._evaluate(clf_xgb, X_train_res, X_valid, y_train_res, y_valid)
 
     def objective(self, space: Dict) -> Dict:
@@ -236,10 +227,9 @@ class TensorflowMLP(Base):
 
         if action == 'predict':
             return self._predict(model)
-        elif action == 'plot':
-            y_pred = model.predict(X_valid)
-            return self.plot_confusion_matrix(confusion_matrix(y_valid,  y_pred > 0.5), title='TensorflowMLP')
         else:
+            y_pred = model.predict(X_valid)
+            self.plot_confusion_matrix(confusion_matrix(y_valid, y_pred > 0.5), title='TensorflowMLP')
             return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid, 0.5)
 
     def make_model(self, X_train, output_bias=None):
@@ -298,10 +288,8 @@ class LightGBM(Base):
         >>> evaluate_metrics = LightGBM().run("evaluate")
         >>> # To Predict with gridsearch
         >>> prediction = LightGBM().run("predict", True)
-        >>> # To plot confusion matrix
-        >>> conf_matrix = LightGBM().run("plot")
         """
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=True)
 
         lgg = lgb.LGBMClassifier()
         if gridsearch == True:
@@ -317,9 +305,9 @@ class LightGBM(Base):
 
         if action == 'predict':
             return self._predict(grid_clf_acc)
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, grid_clf_acc.predict(X_valid)), title=f'LightGBM_GSearch[{gridsearch}]')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, grid_clf_acc.predict(X_valid)),
+                                       title=f'LightGBM_GSearch[{gridsearch}]')
             return self._evaluate(grid_clf_acc, X_train_res, X_valid, y_train_res, y_valid)
 
 
@@ -353,9 +341,9 @@ class EncoderDecoderKNN(Base):
             results.columns = ['Insp']
 
             return results
-        elif action == 'plot':
-            return self.plot_confusion_matrix(confusion_matrix(y_valid, knn_model.predict(model.predict(X_valid))), title='EncoderDecoder')
         else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, knn_model.predict(model.predict(X_valid))),
+                                       title='EncoderDecoder')
             return self._evaluate(knn_model, model.predict(X_train_res), model.predict(X_valid), y_train_res, y_valid)
 
     def make_model(self, X_train_ok):
