@@ -26,8 +26,10 @@ class requiring threshold input for classification: TensorflowMLP
 
 
 class LRegression(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
         """
@@ -38,7 +40,7 @@ class LRegression(Base):
         >>> # To Predict
         >>> prediction = LRegression().run("predict")
         """
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         parameters = {
             'C': np.linspace(1, 10, 10)
         }
@@ -57,11 +59,13 @@ class LRegression(Base):
 
 
 class DecisionTree(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         clf = DecisionTreeClassifier(random_state=0)
         clf.fit(X_train_res, y_train_res.ravel())
 
@@ -73,11 +77,13 @@ class DecisionTree(Base):
 
 
 class NaiveBayesClassifier(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         nbc = GaussianNB()
         nbc.fit(X_train_res, y_train_res.ravel())
 
@@ -89,12 +95,14 @@ class NaiveBayesClassifier(Base):
 
 
 class RandomForest(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
         self.param_grid =  {'n_estimators': [200, 500],
                             'max_features': ['auto', 'sqrt', 'log2'],
                             'max_depth' : [4,5,6,7,8],
                             'criterion' :['gini', 'entropy']}
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         """
@@ -105,7 +113,7 @@ class RandomForest(Base):
         >>> # To Predict with gridsearch
         >>> prediction = RandomForest().run("predict", True)
         """
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
 
         rf = RandomForestClassifier(random_state=0)
         if gridsearch == True:
@@ -124,7 +132,7 @@ class RandomForest(Base):
 
 
 class XGBoost(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
         self.space = {'max_depth': hp.quniform("max_depth", 3, 18, 1),
                       'gamma': hp.uniform('gamma', 1, 9),
@@ -135,6 +143,8 @@ class XGBoost(Base):
                       'n_estimators': 2000,
                       # 'learning_rate': hp.uniform('learning_rate', 0.01, 0.2),
                       'seed': 0}
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         """
@@ -145,7 +155,7 @@ class XGBoost(Base):
         >>> # To Predict with gridsearch
         >>> prediction = XGBoost().run("predict", True)
         """
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         if gridsearch == True:
             trials = Trials()
             best_hyperparams = fmin(fn=self.objective,
@@ -194,7 +204,7 @@ class XGBoost(Base):
 
 
 class TensorflowMLP(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
         self.METRICS = [
             # tf.keras.metrics.TruePositives(name='tp'),
@@ -212,9 +222,11 @@ class TensorflowMLP(Base):
             patience=10,
             mode='max',
             restore_best_weights=True)
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         model = self.make_model(X_train_res)
 
         baseline_history = model.fit(
@@ -270,7 +282,7 @@ class TensorflowMLP(Base):
 
 
 class LightGBM(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
         self.class_weight = [None, 'balanced']
         self.boosting_type = ['gbdt', 'goss', 'dart']
@@ -279,6 +291,8 @@ class LightGBM(Base):
         self.lgg_grid = dict(class_weight=self.class_weight, boosting_type=self.boosting_type,
                              num_leaves=self.num_leaves,
                              learning_rate=self.learning_rate)
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         """
@@ -289,7 +303,7 @@ class LightGBM(Base):
         >>> # To Predict with gridsearch
         >>> prediction = LightGBM().run("predict", True)
         """
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=True)
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
 
         lgg = lgb.LGBMClassifier()
         if gridsearch == True:
@@ -312,11 +326,13 @@ class LightGBM(Base):
 
 
 class EncoderDecoderKNN(Base):
-    def __init__(self):
+    def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
-        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
 
         X_train_ok = X_train_res[y_train_res==0]
 

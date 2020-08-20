@@ -18,7 +18,7 @@ class Base:
         self.train = self.df[self.df['Insp'] != 'unkn']
         self.test = self.df[self.df['Insp'] == 'unkn']
 
-    def _train_test_split(self, polyfeature=False, onehot_ecode=False) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
+    def _train_test_split(self, polyfeature=False, onehot_encode=False) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
         """ Sanity check before spliting into 80% training and 20% validation set """
         X = self.train[['ID', 'Prod', 'Quant', 'Val']]
         y = self.train['Insp']
@@ -34,7 +34,7 @@ class Base:
         if polyfeature == True:
             X = self._poly_feature(X)
 
-        if onehot_ecode == True:
+        if onehot_encode == True:
             X = self._one_hot_encode(X)
 
             X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -51,7 +51,7 @@ class Base:
 
         return X_train_res, X_valid, y_train_res, y_valid
 
-    def test_data_preprocessed(self, polyfeature=False, onehot_ecode=False) -> pd.DataFrame:
+    def test_data_preprocessed(self, polyfeature=False, onehot_encode=False) -> pd.DataFrame:
         """ Converting testing dataset to training dataset format """
         X_test = self.test.drop(columns=['Insp'])
 
@@ -61,7 +61,7 @@ class Base:
         if polyfeature == True:
             X_test = self._poly_feature(X_test)
 
-        if onehot_ecode == True:
+        if onehot_encode == True:
             X_test = self._one_hot_encode(X_test)
 
         return X_test
@@ -75,6 +75,7 @@ class Base:
 
     @staticmethod
     def _poly_feature(X) -> pd.DataFrame:
+        """ adding poly feature to columns with dtypes float 'Quant' and 'Val' """
         poly = PolynomialFeatures(2)
         X_quant_prod = pd.DataFrame(poly.fit_transform(X[['Quant', 'Val']]))
         X_quant_prod.columns = ['redundant', 'Quant', 'Val', 'Feature1', 'Feature2', 'Feature3']
@@ -83,6 +84,7 @@ class Base:
 
     @staticmethod
     def _one_hot_encode(X: pd.DataFrame) -> pd.DataFrame:
+        """ one hot encode categorical columns 'ID' and 'Prod' """
         onehot_id = pd.get_dummies(X['ID'])
         onehot_prod = pd.get_dummies(X['Prod'])
 
