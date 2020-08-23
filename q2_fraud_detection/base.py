@@ -27,6 +27,9 @@ class Base:
         X['ID'] = X['ID'].astype('int')
         X['Prod'] = X['Prod'].astype('int')
 
+        # Additional Feature Engineering
+        X['Price'] = X['Val'] / X['Quant']
+
         # Converting string to machine readable binary
         mapper = {'ok': 0, 'fraud': 1}
         y = y.map(mapper)
@@ -78,9 +81,9 @@ class Base:
         """ adding poly feature to columns with dtypes float 'Quant' and 'Val' """
         poly = PolynomialFeatures(2)
         X_quant_prod = pd.DataFrame(poly.fit_transform(X[['Quant', 'Val']]))
-        X_quant_prod.columns = ['redundant', 'Quant', 'Val', 'Feature1', 'Feature2', 'Feature3']
+        X_quant_prod.columns = [f'Feature{i}' for i in range(0,X_quant_prod.shape[1])]
 
-        return pd.concat([X.reset_index(), X_quant_prod[['Feature1', 'Feature2', 'Feature3']]], axis=1)
+        return pd.concat([X.reset_index(), X_quant_prod[[f'Feature{i}' for i in range(1,X_quant_prod.shape[1])]]], axis=1)
 
     @staticmethod
     def _one_hot_encode(X: pd.DataFrame) -> pd.DataFrame:

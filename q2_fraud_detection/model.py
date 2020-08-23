@@ -65,6 +65,14 @@ class DecisionTree(Base):
         self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import DecisionTree
+        >>>
+        >>> # To Evaluate
+        >>> evaluate_metrics = DecisionTree().run("evaluate")
+        >>> # To Predict
+        >>> prediction = DecisionTree().run("predict")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         clf = DecisionTreeClassifier(random_state=0)
         clf.fit(X_train_res, y_train_res.ravel())
@@ -83,6 +91,14 @@ class NaiveBayesClassifier(Base):
         self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import NaiveBayesClassifier
+        >>>
+        >>> # To Evaluate
+        >>> evaluate_metrics = NaiveBayesClassifier().run("evaluate")
+        >>> # To Predict
+        >>> prediction = NaiveBayesClassifier().run("predict")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         nbc = GaussianNB()
         nbc.fit(X_train_res, y_train_res.ravel())
@@ -226,6 +242,14 @@ class TensorflowMLP(Base):
         self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import TensorflowMLP
+        >>>
+        >>> # To Evaluate
+        >>> evaluate_metrics = TensorflowMLP().run("evaluate")
+        >>> # To Predict
+        >>> prediction = TensorflowMLP().run("predict")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
         model = self.make_model(X_train_res)
 
@@ -332,6 +356,14 @@ class EncoderDecoderKNN(Base):
         self.onehot_encode = onehot_encode
 
     def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import EncoderDecoderKNN
+        >>>
+        >>> # To Evaluate
+        >>> evaluate_metrics = EncoderDecoderKNN().run("evaluate")
+        >>> # To Predict
+        >>> prediction = EncoderDecoderKNN().run("predict")
+        """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
 
         X_train_ok = X_train_res[y_train_res==0]

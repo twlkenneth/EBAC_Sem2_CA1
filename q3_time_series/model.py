@@ -32,16 +32,16 @@ class VectorAutoRegression(Base):
         model = VAR(endog=self.train)
         model_fit = model.fit()
         if action == 'predict':
-            return pd.DataFrame(model_fit.forecast(model_fit.y, steps=2), index=['2008', '2009'],
+            # Use full dataset to get prediction
+            model_full = VAR(endog=self.df)
+            model_fit_full = model_full.fit()
+            return pd.DataFrame(model_fit.forecast(model_fit_full.y, steps=2), index=['2008', '2009'],
                                 columns=[self.df.columns])
         else:
             tmp = []
             for col in self.df.columns:
-                tmp.append({col: {'rmse_train': sqrt(mean_squared_error(self.train[col], self._prediction(model_fit, self.train)[[col]])),
-                                  'rmse_val': sqrt(mean_squared_error(self.valid[col],self._prediction(model_fit, self.valid)[[col]])),
-                                  'mae_train': sqrt(mean_squared_error(self.train[col],self._prediction(model_fit, self.train)[[col]])),
+                tmp.append({col: {'rmse_val': sqrt(mean_squared_error(self.valid[col],self._prediction(model_fit, self.valid)[[col]])),
                                   'mae_val': mean_absolute_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]]),
-                                  'mape_train': f'{self.mean_absolute_percentage_error(self.train[col], self._prediction(model_fit, self.train)[[col]])} %',
                                   'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]])} %'}})
 
             return tmp
@@ -86,16 +86,14 @@ class StepWiseArima(Base):
                                        stepwise=True)
         stepwise_model.fit(self.train[country])
         if action == 'predict':
+            # Use full dataset to get prediction
+            stepwise_model.fit(self.df[country])
             return pd.DataFrame(stepwise_model.predict(n_periods=2), index=['2008', '2009'], columns=[country])
         else:
             pred_valid = pd.DataFrame(stepwise_model.predict(n_periods=len(self.valid[country])))
-            pred_train = pd.DataFrame(stepwise_model.predict(n_periods=len(self.train[country])))
 
-            return {country: {'rmse_train': sqrt(mean_squared_error(self.train[country], pred_train)),
-                              'rmse_val': sqrt(mean_squared_error(self.valid[country], pred_valid)),
-                              'mae_train': mean_absolute_error(self.train[country], pred_train),
+            return {country: {'rmse_val': sqrt(mean_squared_error(self.valid[country], pred_valid)),
                               'mae_val': mean_absolute_error(self.valid[country], pred_valid),
-                              'mape_train': f'{self.mean_absolute_percentage_error(self.train[country], pred_train)} %',
                               'mape_val': f'{self.mean_absolute_percentage_error(self.valid[country], pred_valid)} %'}}
 
 
@@ -105,6 +103,7 @@ class UnivariateMultiStepLSTM(Base):
         self.n_steps_in = n_steps_in
         self.n_steps_out = n_steps_out
         self.n_features = 1
+        self.valid_arb = self.df[int(0.8 * (len(self.df))) - n_steps_in - 1:]
 
     def run(self, country: Countries, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[
         Union[Literal["Singapore"], Literal["China"], Literal["India"]], Dict[str, Union[Union[float, str], Any]]]]:
@@ -118,7 +117,7 @@ class UnivariateMultiStepLSTM(Base):
         assert country in Countries.__args__, \
             f"{country} is not supported, please choose between {Countries.__args__}"
         X_train, y_train = self.split_sequence(self.train[country].values, self.n_steps_in, self.n_steps_out)
-        X_valid, y_valid = self.split_sequence(self.valid[country].values, self.n_steps_in, self.n_steps_out)
+        X_valid, y_valid = self.split_sequence(self.valid_arb[country].values, self.n_steps_in, self.n_steps_out)
 
         X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], self.n_features))
         X_valid = X_valid.reshape((X_valid.shape[0], X_valid.shape[1], self.n_features))
@@ -176,10 +175,17 @@ class MultivariateMultiStepLSTM(Base):
         super().__init__()
         self.n_steps_in = n_steps_in
         self.n_steps_out = n_steps_out
+        self.valid_arb = self.df[int(0.8 * (len(self.df))) - n_steps_in - 1:]
 
     def run(self):
+        """
+        For experimental purpose, since the evaluation result is bad, this model will not be use for prediction
+        >>> from q3_time_series.model import MultivariateMultiStepLSTM
+        >>> # To Evaluate
+        >>> evaluate_metrics = MultivariateMultiStepLSTM(3,2).run()
+        """
         dataset_train = np.hstack(self.hstacK_generator(self.train))
-        dataset_valid = np.hstack(self.hstacK_generator(self.valid))
+        dataset_valid = np.hstack(self.hstacK_generator(self.valid_arb))
 
         X_train, y_train = self.split_sequences(dataset_train, self.n_steps_in, self.n_steps_out)
         X_valid, y_valid = self.split_sequences(dataset_valid, self.n_steps_in, self.n_steps_out)
