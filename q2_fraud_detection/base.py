@@ -7,7 +7,7 @@ from typing import Tuple, Dict, Any
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, accuracy_score, f1_score
-from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 __all__ = ['Base']
 
@@ -29,6 +29,9 @@ class Base:
 
         # Additional Feature Engineering
         X['Price'] = X['Val'] / X['Quant']
+
+        # Feature scaler
+        X[['Quant', 'Val', 'Price']] = self._standard_scaler(X)
 
         # Converting string to machine readable binary
         mapper = {'ok': 0, 'fraud': 1}
@@ -61,6 +64,10 @@ class Base:
         X_test['ID'] = X_test['ID'].astype('int')
         X_test['Prod'] = X_test['Prod'].astype('int')
 
+        X_test['Price'] = X_test['Val'] / X_test['Quant']
+
+        X_test[['Quant', 'Val', 'Price']] = self._standard_scaler(X_test)
+
         if polyfeature == True:
             X_test = self._poly_feature(X_test)
 
@@ -75,6 +82,14 @@ class Base:
         results.columns = ['Insp']
 
         return results
+
+    @staticmethod
+    def _standard_scaler(X):
+        """ scale down value for column 'Quant', 'Val' and 'Price' """
+        scaler = StandardScaler()
+        scaler.fit(X[['Quant', 'Val', 'Price']])
+        scaled_target = X[['Quant', 'Val', 'Price']].copy()
+        return scaler.transform(scaled_target)
 
     @staticmethod
     def _poly_feature(X) -> pd.DataFrame:
