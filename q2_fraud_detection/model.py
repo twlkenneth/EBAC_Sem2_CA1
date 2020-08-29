@@ -2,14 +2,16 @@ import numpy as np
 import pandas as pd
 from typing import Dict, Union
 
-from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 import lightgbm as lgb
+from catboost import CatBoostClassifier
+from hyperopt import STATUS_OK, Trials, fmin, hp, tpe
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score, matthews_corrcoef, confusion_matrix
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 import tensorflow as tf
 import xgboost as xgb
@@ -17,10 +19,10 @@ import xgboost as xgb
 from q2_fraud_detection.base import Base
 
 __all__ = ['LRegression', 'DecisionTree', 'NaiveBayesClassifier', 'RandomForest', 'XGBoost', 'TensorflowMLP',
-           'LightGBM', 'EncoderDecoderKNN']
+           'LightGBM', 'EncoderDecoderKNN', 'CatBoost', 'SupportVectorMachine']
 
 """
-class with Grid Search Function: LightGBM, RandomForest, XGBoost
+class with Grid Search Function: LRegression, LightGBM, RandomForest, XGBoost, CatBoost, SupportVectorMachine
 class requiring threshold input for classification: TensorflowMLP
 """
 
@@ -28,10 +30,16 @@ class requiring threshold input for classification: TensorflowMLP
 class LRegression(Base):
     def __init__(self, polyfeature=False, onehot_encode=False):
         super().__init__()
+        self.space = {'warm_start': hp.choice('warm_start', [True, False]),
+                        'fit_intercept': hp.choice('fit_intercept', [True, False]),
+                        'tol': hp.uniform('tol', 0.00001, 0.0001),
+                        'C': hp.uniform('C', 1, 10),
+                        'max_iter' : hp.choice('max_iter', range(100,1000)),
+                        'multi_class' : 'auto',}
         self.polyfeature = polyfeature
         self.onehot_encode = onehot_encode
 
-    def run(self, action: str = 'evaluate') -> Union[pd.DataFrame, Dict[str, float]]:
+    def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
         """
         >>> from q2_fraud_detection.model import LRegression
         >>>
@@ -41,21 +49,39 @@ class LRegression(Base):
         >>> prediction = LRegression().run("predict")
         """
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
-        parameters = {
-            'C': np.linspace(1, 10, 10)
-        }
         lr = LogisticRegression()
-        clf = GridSearchCV(lr, parameters, cv=5, verbose=5, n_jobs=3)
-        clf.fit(X_train_res, y_train_res.ravel())
 
-        lr1 = LogisticRegression(C=clf.best_params_['C'], penalty='l2', verbose=5)
-        lr1.fit(X_train_res, y_train_res.ravel())
+        if gridsearch == True:
+            trials = Trials()
+            best_hyperparams = fmin(fn=self.objective,
+                                    space=self.space,
+                                    algo=tpe.suggest,
+                                    max_evals=100,
+                                    trials=trials)
+            lr_best = LogisticRegression(**best_hyperparams)
+        else:
+            lr_best = lr
+        lr_best.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            return self._predict(lr1)
+            return self._predict(lr)
         else:
-            self.plot_confusion_matrix(confusion_matrix(y_valid, lr1.predict(X_valid)), title='LRegression')
-            return self._evaluate(lr1, X_train_res, X_valid, y_train_res, y_valid)
+            self.plot_confusion_matrix(confusion_matrix(y_valid, lr_best.predict(X_valid)), title='LRegression')
+            return self._evaluate(lr_best, X_train_res, X_valid, y_train_res, y_valid)
+
+    def objective(self, space: Dict) -> Dict:
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
+
+        lr = LogisticRegression(
+            warm_start=space['warm_start'], fit_intercept=(space['fit_intercept']), tol=space['tol'],
+            C=int(space['C']), max_iter=int(space['max_iter']), multi_class=(space['multi_class']))
+
+        lr.fit(X_train_res, y_train_res)
+
+        pred = lr.predict(X_valid)
+        auc_score = roc_auc_score(y_valid, pred)
+
+        return {'loss': auc_score, 'status': STATUS_OK}
 
 
 class DecisionTree(Base):
@@ -134,17 +160,19 @@ class RandomForest(Base):
         rf = RandomForestClassifier(random_state=0)
         if gridsearch == True:
             grid_rf = GridSearchCV(estimator=rf, cv=5, param_grid=self.param_grid, scoring='roc_auc')
+            grid_rf.fit(X_train_res, y_train_res.ravel())
+            rf_best = RandomForestClassifier(**grid_rf.best_params_)
         else:
-            grid_rf = rf
+            rf_best = rf
 
-        grid_rf.fit(X_train_res, y_train_res.ravel())
+        rf_best.fit(X_train_res, y_train_res.ravel())
 
         if action == 'predict':
-            return self._predict(grid_rf)
+            return self._predict(rf_best)
         else:
-            self.plot_confusion_matrix(confusion_matrix(y_valid, grid_rf.predict(X_valid)),
+            self.plot_confusion_matrix(confusion_matrix(y_valid, rf_best.predict(X_valid)),
                                        title=f'RandomForest_GSearch[{gridsearch}]')
-            return self._evaluate(grid_rf, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(rf_best, X_train_res, X_valid, y_train_res, y_valid)
 
 
 class XGBoost(Base):
@@ -331,15 +359,17 @@ class LightGBM(Base):
 
         lgg = lgb.LGBMClassifier()
         if gridsearch == True:
-            cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3,
+            cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=3,
                                          random_state=1)
             grid_search = GridSearchCV(estimator=lgg,
                                        param_grid=self.lgg_grid, n_jobs=-1, cv=cv,
                                        scoring='roc_auc', error_score=0)
+            grid_search.fit(X_train_res, y_train_res.ravel())
+            lgg_best = lgb.LGBMClassifier(**grid_search.best_params_)
         else:
-            grid_search = lgg
+            lgg_best = lgg
 
-        grid_clf_acc = grid_search.fit(X_train_res, y_train_res)
+        grid_clf_acc = lgg_best.fit(X_train_res, y_train_res)
 
         if action == 'predict':
             return self._predict(grid_clf_acc)
@@ -410,3 +440,89 @@ class EncoderDecoderKNN(Base):
             loss=tf.keras.losses.MeanSquaredError())
 
         return model
+
+
+class CatBoost(Base):
+    def __init__(self, polyfeature=False, onehot_encode=False):
+        super().__init__()
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
+        self.params = {'iterations': [500],
+                      'depth': [6, 8, 10],
+                      'learning_rate': [0.01, 0.05, 0.1],
+                      'loss_function': ['Logloss', 'CrossEntropy'],
+                      'l2_leaf_reg': [3,1,5,10,100],
+                      'leaf_estimation_iterations': [10],
+                      'logging_level':['Silent'],
+                      'random_seed': [42]}
+
+    def run(self, action: str = 'evaluate', gridsearch = False) -> Union[pd.DataFrame, Dict[str, float]]:
+        """
+        >>> from q2_fraud_detection.model import CatBoost
+        >>>
+        >>> # To Evaluate
+        >>> evaluate_metrics = CatBoost().run("evaluate")
+        >>> # To Predict
+        >>> prediction = CatBoost().run("predict")
+        """
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature, onehot_encode=self.onehot_encode)
+        cb = CatBoostClassifier()
+        if gridsearch == True:
+            cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=3,
+                                         random_state=1)
+            grid_search = GridSearchCV(estimator=cb,
+                                       param_grid=self.params, n_jobs=-1, cv=cv,
+                                       scoring='roc_auc', error_score=0)
+            grid_search.fit(X_train_res, y_train_res.ravel())
+            cb_best = CatBoostClassifier(**grid_search.best_params_)
+        else:
+            cb_best = cb
+
+        cb_best.fit(X_train_res, y_train_res.ravel())
+
+        if action == 'predict':
+            return self._predict(cb)
+        else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, cb_best.predict(X_valid)), title='CatBoostClassifier')
+            return self._evaluate(cb_best, X_train_res, X_valid, y_train_res, y_valid)
+
+
+class SupportVectorMachine(Base):
+    def __init__(self, polyfeature=False, onehot_encode=False):
+        super().__init__()
+        self.polyfeature = polyfeature
+        self.onehot_encode = onehot_encode
+        self.params = {'C':[1,10,100,1000],
+                       'gamma':[1,0.1,0.001,0.0001],
+                       'kernel':['linear','rbf']}
+
+    def run(self, action: str = 'evaluate', gridsearch = False):
+        """
+        >>> from q2_fraud_detection.model import SupportVectorMachine
+        >>>
+        >>> # To Evaluate
+        >>> evaluate_metrics = SupportVectorMachine().run("evaluate")
+        >>> # To Predict
+        >>> prediction = SupportVectorMachine().run("predict")
+        """
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature,
+                                                                            onehot_encode=self.onehot_encode)
+        svc = SVC(kernel='rbf', C=10, gamma=0.1)
+        if gridsearch == True:
+            cv = RepeatedStratifiedKFold(n_splits=5, n_repeats=3,
+                                         random_state=1)
+            grid_search = GridSearchCV(estimator=svc,
+                                       param_grid=self.params, n_jobs=-1, cv=cv,
+                                       scoring='roc_auc', error_score=0)
+            grid_search.fit(X_train_res, y_train_res.ravel())
+            svc_best = SVC(**grid_search.best_params_)
+        else:
+            svc_best = svc
+
+        svc_best.fit(X_train_res, y_train_res.ravel())
+
+        if action == 'predict':
+            return self._predict(svc_best)
+        else:
+            self.plot_confusion_matrix(confusion_matrix(y_valid, svc_best.predict(X_valid)), title='SupportVectorMachine')
+            return self._evaluate(svc_best, X_train_res, X_valid, y_train_res, y_valid)
