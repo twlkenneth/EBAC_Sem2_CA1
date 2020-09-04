@@ -18,20 +18,12 @@ class Base:
         self.train = self.df[self.df['Insp'] != 'unkn']
         self.test = self.df[self.df['Insp'] == 'unkn']
 
-    def _train_test_split(self, polyfeature=False, onehot_encode=False) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
+    def _train_test_split(self, polyfeature=False, onehot_encode=False, aggregrate=False) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
         """ Sanity check before spliting into 80% training and 20% validation set """
         X = self.train[['ID', 'Prod', 'Quant', 'Val']]
         y = self.train['Insp']
 
-        # Converting float to categorical variables
-        X['ID'] = X['ID'].astype('int')
-        X['Prod'] = X['Prod'].astype('int')
-
-        # Additional Feature Engineering
-        X['Price'] = X['Val'] / X['Quant']
-
-        # Feature scaler
-        X[['Quant', 'Val', 'Price']] = self._standard_scaler(X)
+        X = self._feature_engineering(X, aggregrate=aggregrate)
 
         # Converting string to machine readable binary
         mapper = {'ok': 0, 'fraud': 1}
@@ -57,16 +49,10 @@ class Base:
 
         return X_train_res, X_valid, y_train_res, y_valid
 
-    def test_data_preprocessed(self, polyfeature=False, onehot_encode=False) -> pd.DataFrame:
+    def test_data_preprocessed(self, polyfeature=False, onehot_encode=False, aggregrate=False) -> pd.DataFrame:
         """ Converting testing dataset to training dataset format """
         X_test = self.test.drop(columns=['Insp'])
-
-        X_test['ID'] = X_test['ID'].astype('int')
-        X_test['Prod'] = X_test['Prod'].astype('int')
-
-        X_test['Price'] = X_test['Val'] / X_test['Quant']
-
-        X_test[['Quant', 'Val', 'Price']] = self._standard_scaler(X_test)
+        X_test = self._feature_engineering(X_test, aggregrate=aggregrate)
 
         if polyfeature == True:
             X_test = self._poly_feature(X_test)
@@ -76,12 +62,43 @@ class Base:
 
         return X_test
 
-    def _predict(self, model) -> pd.DataFrame:
-        y_test = model.predict(self.test_data_preprocessed())
+    def _feature_engineering(self, X: pd.DataFrame, aggregrate=False) -> pd.DataFrame:
+        """ To standardize feature engineering between train and test """
+        # Converting float to categorical variables
+        X['ID'] = X['ID'].astype('int')
+        X['Prod'] = X['Prod'].astype('int')
+
+        # Additional Feature Engineering
+        X['Price'] = X['Val'] / X['Quant']
+
+        # Feature scaler
+        X[['Quant', 'Val', 'Price']] = self._standard_scaler(X)
+
+        # Mean aggregration
+        if aggregrate == True:
+            X = self._aggregration_mean(X, 'Quant')
+            X = self._aggregration_mean(X, 'Val')
+            X = self._aggregration_mean(X, 'Price')
+
+        return X
+
+    def _predict(self, model, polyfeature=False, onehot_encode=False, aggregrate=False) -> pd.DataFrame:
+        y_test = model.predict(self.test_data_preprocessed(polyfeature, onehot_encode, aggregrate))
         results = pd.DataFrame(y_test)
         results.columns = ['Insp']
 
         return results
+
+    @staticmethod
+    def _aggregration_mean(df: pd.DataFrame, input: str) -> pd.DataFrame:
+        """ To aggregate based of ID and Prod columns """
+        group = df.groupby(['ID', 'Prod']).agg({input: ['mean']})
+        group.columns = [f"ID_Prod_avg_{input}"]
+        group.reset_index(inplace=True)
+        df = pd.merge(df, group, on=['ID', 'Prod'], how='left')
+        df[f"ID_Prod_avg_{input}"] = df[f"ID_Prod_avg_{input}"].astype(float)
+
+        return df
 
     @staticmethod
     def _standard_scaler(X):
@@ -89,6 +106,7 @@ class Base:
         scaler = StandardScaler()
         scaler.fit(X[['Quant', 'Val', 'Price']])
         scaled_target = X[['Quant', 'Val', 'Price']].copy()
+
         return scaler.transform(scaled_target)
 
     @staticmethod
