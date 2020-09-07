@@ -314,8 +314,8 @@ class TensorflowMLP(Base):
         baseline_history = model.fit(
             X_train_res,
             y_train_res,
-            batch_size=128,
-            epochs=50,
+            batch_size=256,
+            epochs=100,
             callbacks=[self.early_stopping],
             validation_data=(X_valid, y_valid))
 
@@ -324,40 +324,41 @@ class TensorflowMLP(Base):
                                  aggregrate=self.aggregrate)
         else:
             y_pred = model.predict(X_valid)
-            self.plot_confusion_matrix(confusion_matrix(y_valid, y_pred > 0.5), title='TensorflowMLP')
-            return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid, 0.5)
+            self.plot_confusion_matrix(confusion_matrix(y_valid, y_pred > 0.4), title='TensorflowMLP')
+            return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid, 0.4)
 
     def make_model(self, X_train, output_bias=None):
         if output_bias is not None:
             output_bias = tf.keras.initializers.Constant(output_bias)
         model = tf.keras.Sequential([
             tf.keras.layers.Dense(
-                128, activation='relu',
+                256, activation='relu',
                 input_shape=(X_train.shape[-1],)),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(32, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dropout(0.2),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(256, activation='relu'),
             tf.keras.layers.Dense(1, activation='sigmoid'),
         ])
 
         model.compile(
-            optimizer=tf.keras.optimizers.Adam(lr=1e-5),
+            optimizer=tf.keras.optimizers.Adam(lr=5e-6),
             loss=tf.keras.losses.BinaryCrossentropy(),
             metrics=self.METRICS)
 
