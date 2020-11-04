@@ -17,7 +17,7 @@ from sklearn.tree import DecisionTreeClassifier
 import tensorflow as tf
 import xgboost as xgb
 
-from q2_fraud_detection.base import Base
+from q2_fraud_detection._base import Base
 
 __all__ = ['LRegression', 'DecisionTree', 'NaiveBayesClassifier', 'RandomForest', 'XGBoost', 'TensorflowMLP',
            'LightGBM', 'EncoderDecoderKNN', 'CatBoost', 'SupportVectorMachine', 'AdaBoost']
@@ -72,7 +72,8 @@ class LRegression(Base):
                                  aggregrate=self.aggregrate)
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, lr_best.predict(X_valid)), title='LRegression')
-            return self._evaluate(lr_best, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(lr_best, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
     def objective(self, space: Dict) -> Dict:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
@@ -116,7 +117,8 @@ class DecisionTree(Base):
                                  aggregrate=self.aggregrate)
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, clf.predict(X_valid)), title='DecisionTree')
-            return self._evaluate(clf, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(clf, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
 
 class NaiveBayesClassifier(Base):
@@ -146,7 +148,8 @@ class NaiveBayesClassifier(Base):
                                  aggregrate=self.aggregrate)
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, nbc.predict(X_valid)), title='NaiveBayesClassifier')
-            return self._evaluate(nbc, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(nbc, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
 
 class RandomForest(Base):
@@ -190,7 +193,8 @@ class RandomForest(Base):
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, rf_best.predict(X_valid)),
                                        title=f'RandomForest_GSearch[{gridsearch}]')
-            return self._evaluate(rf_best, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(rf_best, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
     def objective(self, trial) -> float:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
@@ -252,7 +256,8 @@ class XGBoost(Base):
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, clf_xgb.predict(X_valid)),
                                        title=f'XGBoost_GSearch[{gridsearch}]')
-            return self._evaluate(clf_xgb, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(clf_xgb, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
     def objective(self, trial) -> float:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split()
@@ -325,7 +330,8 @@ class TensorflowMLP(Base):
         else:
             y_pred = model.predict(X_valid)
             self.plot_confusion_matrix(confusion_matrix(y_valid, y_pred > 0.4), title='TensorflowMLP')
-            return self._evaluate(model, X_train_res, X_valid, y_train_res, y_valid, 0.4)
+            return self._evaluate(model, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate, threshold=0.4)
 
     def make_model(self, X_train, output_bias=None):
         if output_bias is not None:
@@ -406,7 +412,8 @@ class LightGBM(Base):
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, grid_clf_acc.predict(X_valid)),
                                        title=f'LightGBM_GSearch[{gridsearch}]')
-            return self._evaluate(grid_clf_acc, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(grid_clf_acc, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
     def objective(self, trial) -> float:
         X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=self.polyfeature,
@@ -545,7 +552,8 @@ class CatBoost(Base):
                                  aggregrate=self.aggregrate)
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, cb_best.predict(X_valid)), title='CatBoostClassifier')
-            return self._evaluate(cb_best, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(cb_best, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
 
 class SupportVectorMachine(Base):
@@ -590,7 +598,8 @@ class SupportVectorMachine(Base):
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, svc_best.predict(X_valid)),
                                        title='SupportVectorMachine')
-            return self._evaluate(svc_best, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(svc_best, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)
 
 
 class AdaBoost(Base):
@@ -620,4 +629,5 @@ class AdaBoost(Base):
                                  aggregrate=self.aggregrate)
         else:
             self.plot_confusion_matrix(confusion_matrix(y_valid, clf.predict(X_valid)), title='AdaBoost')
-            return self._evaluate(clf, X_train_res, X_valid, y_train_res, y_valid)
+            return self._evaluate(clf, polyfeature=self.polyfeature, onehot_encode=self.onehot_encode,
+                                  aggregrate=self.aggregrate)

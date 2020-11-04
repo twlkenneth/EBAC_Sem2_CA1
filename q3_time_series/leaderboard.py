@@ -1,7 +1,7 @@
 import pandas as pd
 
 from q3_time_series.model import *
-from q3_time_series.base import Base
+from q3_time_series._base import Base
 
 def comparison() -> pd.DataFrame:
     uni = []

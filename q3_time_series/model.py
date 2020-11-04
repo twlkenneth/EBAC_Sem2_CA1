@@ -9,7 +9,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from statsmodels.tsa.vector_ar.var_model import VAR
 import tensorflow as tf
 
-from q3_time_series.base import Base
+from q3_time_series._base import Base
 
 __all__ = ['VectorAutoRegression', 'StepWiseArima', 'UnivariateMultiStepLSTM']
 
@@ -40,9 +40,11 @@ class VectorAutoRegression(Base):
         else:
             tmp = []
             for col in self.df.columns:
-                tmp.append({col: {'rmse_val': sqrt(mean_squared_error(self.valid[col],self._prediction(model_fit, self.valid)[[col]])),
-                                  'mae_val': mean_absolute_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]]),
-                                  'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]])} %'}})
+                tmp.append({col: {'rmse_val': sqrt(
+                    mean_squared_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]])),
+                    'mae_val': mean_absolute_error(self.valid[col],
+                                                   self._prediction(model_fit, self.valid)[[col]]),
+                    'mape_val': f'{self.mean_absolute_percentage_error(self.valid[col], self._prediction(model_fit, self.valid)[[col]])} %'}})
 
             return tmp
 
@@ -56,6 +58,7 @@ class VectorAutoRegression(Base):
                 pred.iloc[i][j] = prediction[i][j]
 
         return pred
+
 
 class StepWiseArima(Base):
     def __init__(self):
@@ -123,22 +126,30 @@ class UnivariateMultiStepLSTM(Base):
         X_valid = X_valid.reshape((X_valid.shape[0], X_valid.shape[1], self.n_features))
 
         model = self.make_model()
-        model.fit(X_train, y_train, epochs=200, verbose=0, callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)], validation_data=(X_valid, y_valid))
+        model.fit(X_train, y_train, epochs=200, verbose=0,
+                  callbacks=[tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=20)],
+                  validation_data=(X_valid, y_valid))
 
         if action == 'predict':
             input = (self.df[country][-self.n_steps_in:].values).reshape((1, self.n_steps_in, self.n_features))
             pred = model.predict(input, verbose=0)
 
-            return pd.DataFrame(pred, columns = ['2008', '2009'], index=[country]).T
+            return pd.DataFrame(pred, columns=['2008', '2009'], index=[country]).T
 
         else:
             pred_valid = model.predict(X_valid, verbose=0)
             pred_train = model.predict(X_train, verbose=0)
 
-            return {country: {'rmse_train': sqrt(mean_squared_error([y_train[i][0] for i in range(0, len(y_train))], [pred_train[i][0] for i in range(0, len(pred_train))])),
-                              'rmse_val': sqrt(mean_squared_error([y_valid[i][0] for i in range(0, len(y_valid))], [pred_valid[i][0] for i in range(0, len(pred_valid))])),
-                              'mae_train': mean_absolute_error([y_train[i][0] for i in range(0, len(y_train))], [pred_train[i][0] for i in range(0, len(pred_train))]),
-                              'mae_val': mean_absolute_error([y_valid[i][0] for i in range(0, len(y_valid))], [pred_valid[i][0] for i in range(0, len(pred_valid))]),
+            return {country: {'rmse_train': sqrt(mean_squared_error([y_train[i][0] for i in range(0, len(y_train))],
+                                                                    [pred_train[i][0] for i in
+                                                                     range(0, len(pred_train))])),
+                              'rmse_val': sqrt(mean_squared_error([y_valid[i][0] for i in range(0, len(y_valid))],
+                                                                  [pred_valid[i][0] for i in
+                                                                   range(0, len(pred_valid))])),
+                              'mae_train': mean_absolute_error([y_train[i][0] for i in range(0, len(y_train))],
+                                                               [pred_train[i][0] for i in range(0, len(pred_train))]),
+                              'mae_val': mean_absolute_error([y_valid[i][0] for i in range(0, len(y_valid))],
+                                                             [pred_valid[i][0] for i in range(0, len(pred_valid))]),
                               'mape_train': f'{self.mean_absolute_percentage_error([y_train[i][0] for i in range(0, len(y_train))], [pred_train[i][0] for i in range(0, len(pred_train))])} %',
                               'mape_val': f'{self.mean_absolute_percentage_error([y_valid[i][0] for i in range(0, len(y_valid))], [pred_valid[i][0] for i in range(0, len(pred_valid))])} %'}}
 
@@ -200,12 +211,19 @@ class MultivariateMultiStepLSTM(Base):
 
         tmp = []
         for j, col in enumerate(self.df.columns):
-            tmp.append({col: {'rmse_train': sqrt(mean_squared_error([y_train[i][0][j] for i in range(0,len(y_train))], [pred_train[i][0][j] for i in range(0,len(pred_train))])),
-                              'rmse_val': sqrt(mean_squared_error([y_valid[i][0][j] for i in range(0,len(y_valid))], [pred_valid[i][0][j] for i in range(0,len(pred_valid))])),
-                              'mae_train': mean_absolute_error([y_train[i][0][j] for i in range(0,len(y_train))], [pred_train[i][0][j] for i in range(0,len(pred_train))]),
-                              'mae_val': mean_absolute_error([y_valid[i][0][j] for i in range(0,len(y_valid))], [pred_valid[i][0][j] for i in range(0,len(pred_valid))]),
-                              'mape_train': f'{self.mean_absolute_percentage_error([y_train[i][0][j] for i in range(0,len(y_train))], [pred_train[i][0][j] for i in range(0,len(pred_train))])} %',
-                              'mape_val': f'{self.mean_absolute_percentage_error([y_valid[i][0][j] for i in range(0,len(y_valid))], [pred_train[i][0][j] for i in range(0,len(pred_valid))])} %'}})
+            tmp.append({col: {'rmse_train': sqrt(mean_squared_error([y_train[i][0][j] for i in range(0, len(y_train))],
+                                                                    [pred_train[i][0][j] for i in
+                                                                     range(0, len(pred_train))])),
+                              'rmse_val': sqrt(mean_squared_error([y_valid[i][0][j] for i in range(0, len(y_valid))],
+                                                                  [pred_valid[i][0][j] for i in
+                                                                   range(0, len(pred_valid))])),
+                              'mae_train': mean_absolute_error([y_train[i][0][j] for i in range(0, len(y_train))],
+                                                               [pred_train[i][0][j] for i in
+                                                                range(0, len(pred_train))]),
+                              'mae_val': mean_absolute_error([y_valid[i][0][j] for i in range(0, len(y_valid))],
+                                                             [pred_valid[i][0][j] for i in range(0, len(pred_valid))]),
+                              'mape_train': f'{self.mean_absolute_percentage_error([y_train[i][0][j] for i in range(0, len(y_train))], [pred_train[i][0][j] for i in range(0, len(pred_train))])} %',
+                              'mape_val': f'{self.mean_absolute_percentage_error([y_valid[i][0][j] for i in range(0, len(y_valid))], [pred_train[i][0][j] for i in range(0, len(pred_valid))])} %'}})
 
         return tmp
 

@@ -1,2 +1,2 @@
-from .base import *
+from ._base import *
 from .model import *

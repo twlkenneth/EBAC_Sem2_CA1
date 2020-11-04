@@ -18,7 +18,7 @@ class Base:
         self.train = self.df[self.df['Insp'] != 'unkn']
         self.test = self.df[self.df['Insp'] == 'unkn']
 
-    def _train_test_split(self, polyfeature=False, onehot_encode=False, aggregrate=False) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
+    def _train_test_split(self, polyfeature=False, onehot_encode=False, aggregrate=False, oversampling=True) -> Tuple[pd.DataFrame, pd.DataFrame, Any, Any]:
         """ Sanity check before spliting into 80% training and 20% validation set """
         X = self.train[['ID', 'Prod', 'Quant', 'Val']]
         y = self.train['Insp']
@@ -33,16 +33,12 @@ class Base:
             X = self._poly_feature(X)
 
         if onehot_encode == True:
-            X = self._one_hot_encode(X)
-
-            X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=42)
-
-            sm = SMOTE(random_state=2)
-            X_train_res, y_train_res = sm.fit_sample(X_train.values, y_train.ravel())
-
-            return pd.DataFrame(X_train_res, columns=X.columns), X_valid, y_train_res, y_valid
+            X = self._one_hot_encode(X).values
 
         X_train, X_valid, y_train, y_valid = train_test_split(X, y, test_size=0.2, random_state=42)
+
+        if oversampling == False:
+            return X_train, X_valid, y_train, y_valid
 
         sm = SMOTE(random_state=2)
         X_train_res, y_train_res = sm.fit_sample(X_train, y_train.ravel())
@@ -126,9 +122,13 @@ class Base:
 
         return pd.concat([X, onehot_id, onehot_prod], axis=1).drop(columns=['ID', 'Prod'])
 
-    @staticmethod
-    def _evaluate(model, X_train_res: pd.DataFrame, X_valid: pd.DataFrame, y_train_res: pd.DataFrame
-                  , y_valid: pd.DataFrame, threshold=None) -> Dict[str, float]:
+    def _evaluate(self, model, polyfeature: bool =False, onehot_encode: bool =False, aggregrate: bool =False,
+                  threshold=None) -> Dict[str, float]:
+        """ Original training data without SMOTE processing is use for evaluation """
+        X_train_res, X_valid, y_train_res, y_valid = self._train_test_split(polyfeature=polyfeature,
+                                                                            onehot_encode=onehot_encode,
+                                                                            aggregrate=aggregrate,
+                                                                            oversampling=False)
         y_train_pre = model.predict(X_train_res)
         y_valid_pre = model.predict(X_valid)
 
